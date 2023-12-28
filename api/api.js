@@ -1,7 +1,8 @@
 const { MongoClient } = require("mongodb");
 
-const rawUri = `mongodb+srv://ronaldharsh:${process.env.MONGODB_URI}@cluster0.xwtwp.mongodb.net/`;
-const uri = encodeURIComponent(rawUri);
+const rawPassword = process.env.MONGO_URI_PASS;
+const encodedPassword = encodeURIComponent(rawPassword);
+const uri = `mongodb+srv://ronaldharsh:${encodedPassword}@cluster0.xwtwp.mongodb.net/`;
 const dbName = "iconic";
 
 exports.handler = async function (event, context) {
