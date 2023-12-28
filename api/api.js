@@ -30,18 +30,11 @@ exports.handler = async function (event, context) {
 		// Parse the request body
 		const data = JSON.parse(event.body);
 		console.log("OPERATION: ", data.operation);
-        following: false,
-    };
-} else {
-    return {
-        message: "User following return",
-        following: false,
-    };
-}
-} else {
-console.log(
-    `User ${data.current} does not have a following list or does not exist`
-);
+
+		if (data.operation === "verifyUser") {
+			result = await verifyUser(db, data);
+		} else if (data.operation === "createDefaultSettings") {
+			await createDefaultSettings(db, data);
 			result = { message: "Default settings created" };
 		} else if (data.operation === "getSocialLinks") {
 			result = await getSocialLinks(db, data);
