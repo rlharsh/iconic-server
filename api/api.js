@@ -20,6 +20,7 @@ exports.handler = async function (event, context) {
 	}
 
 	// Initialize MongoDB client outside of try-catch to ensure it's accessible in finally block
+	console.log(uri);
 	const client = new MongoClient(uri);
 
 	try {
