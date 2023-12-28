@@ -1,7 +1,6 @@
 const { MongoClient } = require("mongodb");
 
-const uri =
-	"mongodb+srv://ronaldharsh:h6WT4auMa7LHWrdroXTuWzj9zDwXU3dRUNwJztGj9Yrzb3SV9F53pt9JPYDWHTyu@cluster0.xwtwp.mongodb.net/";
+const uri = process.env.MONGODB_URI;
 const dbName = "iconic";
 
 exports.handler = async function (event, context) {
