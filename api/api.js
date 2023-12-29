@@ -23,7 +23,6 @@ exports.handler = async function (event, context) {
 	}
 
 	// Initialize MongoDB client outside of try-catch to ensure it's accessible in finally block
-	console.log(uri);
 	const client = new MongoClient(uri);
 
 	try {
@@ -37,6 +36,8 @@ exports.handler = async function (event, context) {
 
 		if (data.operation === "verifyUser") {
 			result = await verifyUser(db, data);
+		} else if (data.operation === "getUserConfig") {
+			result = await getUserConfig(db, data);
 		} else if (data.operation === "createDefaultSettings") {
 			await createDefaultSettings(db, data);
 			result = { message: "Default settings created" };
@@ -44,13 +45,16 @@ exports.handler = async function (event, context) {
 			result = await getSocialLinks(db, data);
 		} else if (data.operation === "getIsFollowing") {
 			result = await getIsFollowing(db, data);
+		} else if (data.operation === "getData") {
+			result = await getData(db, data);
 		} else if (data.operation === "getUserVibes") {
 			result = await getUserVibes(db, data);
 		} else if (data.operation === "getUserProfile") {
 			result = await getUserProfile(db, data);
 		} else if (data.operation === "createSocialNetworks") {
-			await createSocialnetworks(db, data);
-			result = { message: "Social networks created" };
+			result = await createSocialnetworks(db, data);
+		} else if (data.operation === "createSocialLink") {
+			result = await createSocialLink(db, data);
 		} else if (data.operation === "createNewUser") {
 			await createNewUser(db, data);
 			result = { message: "New user has been created" };
@@ -59,6 +63,8 @@ exports.handler = async function (event, context) {
 			result = { message: "Created a new vibe" };
 		} else if (data.operation === "verifyProfile") {
 			result = await verifyProfile(db, data);
+		} else if (data.operation === "putSocials") {
+			result = await putSocials(db, data);
 		} else {
 			console.log("OPERATION: ", data.operation);
 			throw new Error("Unknown operation");
@@ -86,7 +92,6 @@ async function createDefaultSettings(db, data) {
 async function createSocialnetworks(db, data) {
 	const collection = db.collection("social");
 	await collection.insertOne(data);
-	// Additional actions or result handling
 }
 
 async function verifyUser(db, data) {
@@ -109,6 +114,18 @@ async function getSocialLinks(db, data) {
 		message: "Collected users social links",
 		linksExists,
 		socialLinks,
+	};
+}
+
+async function putSocials(db, data) {
+	const collection = db.collection("social");
+	const filter = { uid: data.uid };
+	const update = { $set: { networks: data.networks } };
+
+	const result = await collection.updateOne(filter, update);
+	return {
+		message: "Update positions success",
+		result,
 	};
 }
 
@@ -149,6 +166,53 @@ async function getUserVibes(db, data) {
 		userVibes,
 		vibesExists,
 	};
+}
+
+async function getData(db, data) {
+	const usersCollection = db.collection("users");
+	const socialCollection = db.collection("social");
+	const vibesCollection = db.collection("vibes");
+	const configsCollection = db.collection("configs");
+
+	const [userProfile, socialLinks, userVibes, userConfig] = await Promise.all([
+		usersCollection.findOne({ uid: data.uid }),
+		socialCollection.findOne({ uid: data.uid }),
+		vibesCollection.findOne({ uid: data.uid }),
+		configsCollection.findOne({ uid: data.uid }),
+	]);
+
+	const combinedData = {
+		userData: userProfile || {},
+		socialData: socialLinks || {},
+		annoucementData: userVibes || {},
+		configData: userConfig || {},
+	};
+
+	return {
+		combinedData,
+	};
+}
+
+async function getUserConfig(db, data) {
+	const collection = db.collection("configs");
+	const userConfig = await collection.findOne({ uid: data.uid });
+	const userExists = userConfig !== null;
+
+	return {
+		message: "Retreived user configuration",
+		userConfig,
+		userExists,
+	};
+}
+
+async function createSocialLink(db, data) {
+	const userId = data.uid;
+	const collection = db.collection("social");
+	const result = await collection.updateOne(
+		{ uid: userId },
+		{ $push: { networks: data } }
+	);
+	return result;
 }
 
 async function getUserProfile(db, data) {
