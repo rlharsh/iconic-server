@@ -43,8 +43,13 @@ exports.handler = async function (event, context) {
 		} else if (data.operation === "createDefaultSettings") {
 			await createDefaultSettings(db, data);
 			result = { message: "Default settings created" };
+		} else if (data.operation === "createCollection") {
+			await createCollection(db, data);
+			result = { message: "Default collection created" };
 		} else if (data.operation === "getSocialLinks") {
 			result = await getSocialLinks(db, data);
+		} else if (data.operation === "getCollections") {
+			result = await getCollections(db, data);
 		} else if (data.operation === "getIsFollowing") {
 			result = await getIsFollowing(db, data);
 		} else if (data.operation === "getData") {
@@ -91,6 +96,11 @@ async function createDefaultSettings(db, data) {
 	// Additional actions or result handling
 }
 
+async function createCollection(db, data) {
+	const collection = db.collection("collections");
+	await collection.insertOne(data);
+}
+
 async function createSocialnetworks(db, data) {
 	const collection = db.collection("social");
 	await collection.insertOne(data);
@@ -107,26 +117,91 @@ async function verifyUser(db, data) {
 	};
 }
 
+async function putSocials(db, data) {
+	console.log(data);
+
+	const filter = {
+		uid: data.uid,
+		"collections.key": data.networks.key,
+	};
+
+	const updateDocument = {
+		$set: {
+			"collections.$.links": data.networks.links,
+		},
+	};
+
+	let result = await db
+		.collection("collections")
+		.updateOne(filter, updateDocument);
+
+	console.log(result);
+
+	return;
+	/*
+	const collection = db.collection("social");
+	const filter = { uid: data.uid };
+	const update = { $set: { networks: data.networks } };
+
+	const result = await collection.updateOne(filter, update);
+	return {
+		message: "Update positions success",
+		result,
+	};
+	*/
+}
+
 async function updateLink(db, data) {
+	const filter = {
+		uid: data.uid,
+		"collections.key": data.network.collection,
+	};
+	const updateDocument = {
+		$set: {
+			"collections.$.links.$[linkElem]": data.network,
+		},
+	};
+	const options = {
+		arrayFilters: [{ "linkElem.key": data.network.key }],
+	};
+	let result = await db
+		.collection("collections")
+		.updateOne(filter, updateDocument, options);
+
+	console.log(result);
+	return;
+}
+
+async function createSocialLink(db, data) {
 	try {
-		const query = {
+		const filter = {
 			uid: data.uid,
-			"networks.key": data.network.key,
+			"collections.key": data.collection,
 		};
 
 		const updateDocument = {
-			$set: {
-				"networks.$": data.network,
+			$push: {
+				"collections.$.links": data,
 			},
 		};
 
-		let result = await db.collection("social").updateOne(query, updateDocument);
-		return {
-			message: "Updated social links",
-		};
+		let result = await db
+			.collection("collections")
+			.updateOne(filter, updateDocument);
+
+		console.log(result);
 	} catch (error) {
-		console.log(error);
+		console.log("Error creating link:", error);
 	}
+	/*
+	const userId = data.uid;
+	const collection = db.collection("social");
+	const result = await collection.updateOne(
+		{ uid: userId },
+		{ $push: { networks: data } }
+	);
+	return result;
+	*/
 }
 
 async function getSocialLinks(db, data) {
@@ -141,15 +216,15 @@ async function getSocialLinks(db, data) {
 	};
 }
 
-async function putSocials(db, data) {
-	const collection = db.collection("social");
-	const filter = { uid: data.uid };
-	const update = { $set: { networks: data.networks } };
+async function getCollections(db, data) {
+	const collection = db.collection("collections");
+	const collectionData = await collection.findOne({ uid: data.uid });
+	const collectionExists = collectionData !== null;
 
-	const result = await collection.updateOne(filter, update);
 	return {
-		message: "Update positions success",
-		result,
+		message: "Collections obtained",
+		collectionExists,
+		collectionData,
 	};
 }
 
@@ -197,19 +272,25 @@ async function getData(db, data) {
 	const socialCollection = db.collection("social");
 	const vibesCollection = db.collection("vibes");
 	const configsCollection = db.collection("configs");
+	const collectionsCollection = db.collection("collections");
 
-	const [userProfile, socialLinks, userVibes, userConfig] = await Promise.all([
-		usersCollection.findOne({ uid: data.uid }),
-		socialCollection.findOne({ uid: data.uid }),
-		vibesCollection.findOne({ uid: data.uid }),
-		configsCollection.findOne({ uid: data.uid }),
-	]);
+	const [userProfile, socialLinks, userVibes, userConfig, collections] =
+		await Promise.all([
+			usersCollection.findOne({ uid: data.uid }),
+			socialCollection.findOne({ uid: data.uid }),
+			vibesCollection.findOne({ uid: data.uid }),
+			configsCollection.findOne({ uid: data.uid }),
+			collectionsCollection.findOne({ uid: data.uid }),
+		]);
+
+	console.log(collections);
 
 	const combinedData = {
 		userData: userProfile || {},
 		socialData: socialLinks || {},
 		annoucementData: userVibes || {},
 		configData: userConfig || {},
+		collectionData: collections || {},
 	};
 
 	return {
@@ -227,16 +308,6 @@ async function getUserConfig(db, data) {
 		userConfig,
 		userExists,
 	};
-}
-
-async function createSocialLink(db, data) {
-	const userId = data.uid;
-	const collection = db.collection("social");
-	const result = await collection.updateOne(
-		{ uid: userId },
-		{ $push: { networks: data } }
-	);
-	return result;
 }
 
 async function getUserProfile(db, data) {
