@@ -38,6 +38,8 @@ exports.handler = async function (event, context) {
 			result = await verifyUser(db, data);
 		} else if (data.operation === "getUserConfig") {
 			result = await getUserConfig(db, data);
+		} else if (data.operation === "updateLink") {
+			result = await updateLink(db, data);
 		} else if (data.operation === "createDefaultSettings") {
 			await createDefaultSettings(db, data);
 			result = { message: "Default settings created" };
@@ -103,6 +105,28 @@ async function verifyUser(db, data) {
 		message: "User verification complete",
 		userExists,
 	};
+}
+
+async function updateLink(db, data) {
+	try {
+		const query = {
+			uid: data.uid,
+			"networks.key": data.network.key,
+		};
+
+		const updateDocument = {
+			$set: {
+				"networks.$": data.network,
+			},
+		};
+
+		let result = await db.collection("social").updateOne(query, updateDocument);
+		return {
+			message: "Updated social links",
+		};
+	} catch (error) {
+		console.log(error);
+	}
 }
 
 async function getSocialLinks(db, data) {
