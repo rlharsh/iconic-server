@@ -154,15 +154,15 @@ async function putSocials(db, data) {
 async function updateLink(db, data) {
 	const filter = {
 		uid: data.uid,
-		"collections.key": data.network.collection,
+		"collections.key": data.link.collection,
 	};
 	const updateDocument = {
 		$set: {
-			"collections.$.links.$[linkElem]": data.network,
+			"collections.$.links.$[linkElem]": data.link,
 		},
 	};
 	const options = {
-		arrayFilters: [{ "linkElem.key": data.network.key }],
+		arrayFilters: [{ "linkElem.key": data.link.key }],
 	};
 	let result = await db
 		.collection("collections")
