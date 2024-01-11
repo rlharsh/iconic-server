@@ -32,17 +32,18 @@ exports.handler = async function (event, context) {
 
 		// Parse the request body
 		const data = JSON.parse(event.body);
-		console.log("OPERATION: ", data.operation);
 
 		if (data.operation === "verifyUser") {
 			result = await verifyUser(db, data);
+		} else if (data.operation === "verifyAdminUser") {
+			result = await verifyAdminUser(db, data);
 		} else if (data.operation === "getUserConfig") {
 			result = await getUserConfig(db, data);
 		} else if (data.operation === "updateLink") {
 			result = await updateLink(db, data);
 		} else if (data.operation === "createDefaultSettings") {
 			await createDefaultSettings(db, data);
-			result = { message: "Default settings created" };
+			result = { message: "Default settings created", created: true };
 		} else if (data.operation === "createCollection") {
 			await createCollection(db, data);
 			result = { message: "Default collection created" };
@@ -72,8 +73,12 @@ exports.handler = async function (event, context) {
 			result = await verifyProfile(db, data);
 		} else if (data.operation === "putSocials") {
 			result = await putSocials(db, data);
+		} else if (data.operation === "verifyUserName") {
+			result = await verifyUserName(db, data);
 		} else if (data.operation === "getProfileData") {
 			result = await getProfileData(db, data);
+		} else if (data.operation === "getMediaLibrary") {
+			result = await getMediaLibrary(db, data);
 		} else {
 			console.log("OPERATION: ", data.operation);
 			throw new Error("Unknown operation");
@@ -88,6 +93,7 @@ exports.handler = async function (event, context) {
 		console.error("Error in database operation:", error);
 	} finally {
 		// Close the MongoDB client
+		// await client.close();
 		await client.close();
 	}
 };
@@ -95,7 +101,14 @@ exports.handler = async function (event, context) {
 async function createDefaultSettings(db, data) {
 	const collection = db.collection("configs");
 	await collection.insertOne(data);
-	// Additional actions or result handling
+
+	const userName = {
+		uid: data.uid,
+		username: data.account.username,
+	};
+
+	const userCollection = db.collection("alias");
+	await userCollection.insertOne(userName);
 }
 
 async function createCollection(db, data) {
@@ -110,6 +123,17 @@ async function createSocialnetworks(db, data) {
 
 async function verifyUser(db, data) {
 	const collection = db.collection("users");
+	const user = await collection.findOne({ uid: data.uid });
+	const userExists = user !== null;
+
+	return {
+		message: "User verification complete",
+		userExists,
+	};
+}
+
+async function verifyAdminUser(db, data) {
+	const collection = db.collection("configs");
 	const user = await collection.findOne({ uid: data.uid });
 	const userExists = user !== null;
 
@@ -137,58 +161,10 @@ async function putSocials(db, data) {
 			.updateOne(filter, updateDocument);
 
 		console.log(result);
-		/*
-		const socialLinks = data.networks.links;
-
-		for (const social of socialLinks) {
-			// Clone the social object and remove the _id property
-			const updatedSocial = { ...social };
-			delete updatedSocial._id;
-
-			const filter = { key: social.key };
-			const updateDocument = { $set: updatedSocial };
-
-			let result = await db
-				.collection("links")
-				.updateOne(filter, updateDocument);
-			console.log(result); // This line is for debugging purposes
-		}
-		*/
 		return;
 	} catch (error) {
 		console.error("Error updating social links: ", error);
 	}
-	/*
-	const filter = {
-		uid: data.uid,
-		"collections.key": data.networks.key,
-	};
-
-	const updateDocument = {
-		$set: {
-			"collections.$.links": data.networks.links,
-		},
-	};
-
-	let result = await db
-		.collection("collections")
-		.updateOne(filter, updateDocument);
-
-	console.log(result);
-
-	return;
-	*/
-	/*
-	const collection = db.collection("social");
-	const filter = { uid: data.uid };
-	const update = { $set: { networks: data.networks } };
-
-	const result = await collection.updateOne(filter, update);
-	return {
-		message: "Update positions success",
-		result,
-	};
-	*/
 }
 
 async function updateLink(db, data) {
@@ -244,6 +220,18 @@ async function getSocialLinks(db, data) {
 		message: "Collected users social links",
 		linksExists,
 		socialLinks,
+	};
+}
+
+async function getMediaLibrary(db, data) {
+	const collection = db.collection("media");
+	const mediaLibrary = await collection.findOne({ uid: data.uid });
+	const libraryExists = mediaLibrary !== null;
+
+	return {
+		message: "Message collection complete",
+		libraryExists,
+		mediaLibrary,
 	};
 }
 
@@ -372,6 +360,22 @@ async function verifyProfile(db, data) {
 		user,
 		userExists,
 	};
+}
+
+async function verifyUserName(db, data) {
+	try {
+		const collection = db.collection("alias");
+		const user = await collection.findOne({ username: data.username });
+		const userExists = user !== null;
+
+		return {
+			message: "User location complete",
+			user,
+			userExists,
+		};
+	} catch (error) {
+		console.error("Error verifying username:", error);
+	}
 }
 
 async function createNewUser(db, data) {
