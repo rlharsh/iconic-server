@@ -33,6 +33,8 @@ exports.handler = async function (event, context) {
 		// Parse the request body
 		const data = JSON.parse(event.body);
 
+		console.log(data.operation);
+
 		if (data.operation === "verifyUser") {
 			result = await verifyUser(db, data);
 		} else if (data.operation === "verifyAdminUser") {
