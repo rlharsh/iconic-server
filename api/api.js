@@ -33,7 +33,7 @@ exports.handler = async function (event, context) {
 		// Parse the request body
 		const data = JSON.parse(event.body);
 
-		console.log(data.operation);
+		console.log("OPERATION: ", data.operation);
 
 		if (data.operation === "verifyUser") {
 			result = await verifyUser(db, data);
@@ -81,6 +81,8 @@ exports.handler = async function (event, context) {
 			result = await getProfileData(db, data);
 		} else if (data.operation === "getMediaLibrary") {
 			result = await getMediaLibrary(db, data);
+		} else if (data.operation === "uploadImage") {
+			result = await uploadImage(db, data);
 		} else {
 			console.log("OPERATION: ", data.operation);
 			throw new Error("Unknown operation");
@@ -111,6 +113,17 @@ async function createDefaultSettings(db, data) {
 
 	const userCollection = db.collection("alias");
 	await userCollection.insertOne(userName);
+}
+
+async function uploadImage(db, data) {
+	//console.log(data);
+	const collection = db.collection("images");
+
+	const updatePromise = data.images.map(async (image) => {
+		return await collection.insertOne(image);
+	});
+
+	await Promise.all(updatePromise);
 }
 
 async function createCollection(db, data) {
@@ -226,12 +239,14 @@ async function getSocialLinks(db, data) {
 }
 
 async function getMediaLibrary(db, data) {
-	const collection = db.collection("media");
-	const mediaLibrary = await collection.findOne({ uid: data.uid });
-	const libraryExists = mediaLibrary !== null;
+	const collection = db.collection("images");
+	const cursor = collection.find({ uid: data.uid });
+	const mediaLibrary = await cursor.toArray();
+
+	const libraryExists = mediaLibrary.length > 0;
 
 	return {
-		message: "Message collection complete",
+		messge: "Media collection complete.",
 		libraryExists,
 		mediaLibrary,
 	};
