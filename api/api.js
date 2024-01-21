@@ -83,6 +83,14 @@ exports.handler = async function (event, context) {
 			result = await getMediaLibrary(db, data);
 		} else if (data.operation === "uploadImage") {
 			result = await uploadImage(db, data);
+		} else if (data.operation === "getPages") {
+			result = await getPages(db, data);
+		} else if (data.operation === "createNewPage") {
+			result = await createNewPage(db, data);
+		} else if (data.operation === "getConfig") {
+			result = await getConfig(db, data);
+		} else if (data.operation === "removePage") {
+			result = await removePage(db, data);
 		} else {
 			console.log("OPERATION: ", data.operation);
 			throw new Error("Unknown operation");
@@ -155,7 +163,75 @@ async function verifyAdminUser(db, data) {
 	return {
 		message: "User verification complete",
 		userExists,
+		user,
 	};
+}
+
+async function getConfig(db, data) {
+	try {
+		const collection = db.collection("configs");
+		const userConfig = await collection.findOne({ uid: data.uid });
+		const userExists = userConfig !== null;
+
+		return {
+			userExists,
+			userConfig,
+		};
+	} catch (error) {
+		console.error("Error in getConfig:", error);
+	}
+}
+
+async function createNewPage(db, data) {
+	try {
+		const configs = db.collection("configs");
+		const userConfig = await configs.findOne({ uid: data.uid });
+
+		const pagesArray =
+			userConfig && Array.isArray(userConfig.pages) ? userConfig.pages : [];
+
+		const newPage = data.page;
+		const updatedPagesArray = [...pagesArray, newPage];
+
+		await configs.updateOne(
+			{ uid: data.uid },
+			{ $set: { pages: updatedPagesArray } }
+		);
+		return {
+			success: true,
+		};
+	} catch (error) {
+		console.error("Error in createNewPage:", error);
+		return {
+			success: false,
+		};
+	}
+}
+
+async function removePage(db, data) {
+	try {
+		const collection = db.collection("configs");
+		const userConfig = await collection.findOne({ uid: data.uid });
+
+		const pagesArray =
+			userConfig && Array.isArray(userConfig.pages) ? userConfig.pages : [];
+
+		const pageId = data.page.uuid;
+		const updatedPagesArray = pagesArray.filter((page) => page.uuid !== pageId);
+
+		await collection.updateOne(
+			{ uid: data.uid },
+			{ $set: { pages: updatedPagesArray } }
+		);
+		return {
+			success: true,
+		};
+	} catch (error) {
+		console.error("Error removing page:", error);
+		return {
+			success: false,
+		};
+	}
 }
 
 async function putSocials(db, data) {
@@ -249,6 +325,20 @@ async function getMediaLibrary(db, data) {
 		messge: "Media collection complete.",
 		libraryExists,
 		mediaLibrary,
+	};
+}
+
+async function getPages(db, data) {
+	const collection = db.collection("pages");
+	const cursor = collection.find({ uid: data.uid });
+	const pageLibrary = await cursor.toArray();
+
+	const pagesExists = pageLibrary.length > 0;
+
+	return {
+		messge: "Page fetch complete.",
+		pagesExists,
+		pageLibrary,
 	};
 }
 
